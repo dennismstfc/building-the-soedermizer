@@ -1,6 +1,8 @@
 import pandas as pd
 from pathlib import Path
 
+from standard_values import *
+
 
 class Sentence:
     """
@@ -44,7 +46,7 @@ class Sentence:
 
 def generate_dataset(
         data_path: Path, 
-        save_folder: Path, 
+        save_folder: Path = DATA_PATH, 
         split_ratio: tuple = (0.8, 0.1, 0.1)
         ) -> None:
 
@@ -80,9 +82,9 @@ def generate_dataset(
     eval_df = all_combinations[train_size:train_size + eval_size]
     test_df = all_combinations[train_size + eval_size:]
 
-    train_df.to_csv(Path("data_correl_aid", "train.csv"), index=False)
-    eval_df.to_csv(Path("data_correl_aid", "eval.csv"), index=False)
-    test_df.to_csv(Path("data_correl_aid", "test.csv"), index=False)
+    train_df.to_csv(TRAIN_DATA_PATH, index=False)
+    eval_df.to_csv(EVAL_DATA_PATH, index=False)
+    test_df.to_csv(TEST_DATA_PATH, index=False)
 
     print("Train: ", len(train_df))
     print("Eval: ", len(eval_df))
@@ -90,5 +92,5 @@ def generate_dataset(
 
     
 if __name__ == "__main__":
-    save_folder = Path("", "all_combinations.csv")
-    generate_dataset(save_folder)
+    data_path = Path("data", "sentences.csv")
+    generate_dataset(data_path)

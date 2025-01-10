@@ -8,14 +8,13 @@ from datasets import Dataset
 from peft import LoraConfig, get_peft_model
 import evaluate
 
+from standard_values import TRAIN_DATA_PATH, EVAL_DATA_PATH
 from pathlib import Path
 from folder_structure import ExperimentPaths
 
 import logging
 logging.basicConfig(level=logging.DEBUG)
 
-TRAIN_DATA_PATH = Path("data_correl_aid", "train.csv")
-EVAL_DATA_PATH = Path("data_correl_aid", "eval.csv")
 
 class ModelTraining:
     def __init__(

@@ -31,8 +31,7 @@ class EvaluateModel:
             raise FileNotFoundError(f"Cannot find evaluation data at {test_data_path}.")
 
         test_data_df = pd.read_csv(test_data_path)
-        test_data_df = test_data_df.head(100)
-        test_data_df = test_data_df[["non-gendered", "corrected"]]
+        test_data_df = test_data_df[["non_gendered", "gendered"]]
         test_dataset = Dataset.from_pandas(test_data_df)
         test_dataset = test_dataset.map(self.__preprocess_data, batched=True)
 
@@ -43,8 +42,8 @@ class EvaluateModel:
             predictions.extend(batch_predictions)
 
         results = pd.DataFrame({
-            "non-gendered": test_data_df["non-gendered"],
-            "corrected": test_data_df["corrected"],
+            "non_gendered": test_data_df["non_gendered"],
+            "gendered": test_data_df["gendered"],
             "predicted": predictions
         })
 
@@ -54,7 +53,7 @@ class EvaluateModel:
         """
         Preprocess the data for the model.
         """
-        inputs = examples["non-gendered"]
+        inputs = examples["gendered"]
         model_inputs = self.tokenizer(
             inputs, max_length=512, truncation=True, padding="max_length", return_tensors="pt")
         return model_inputs
@@ -63,7 +62,7 @@ class EvaluateModel:
         """
         Generate predictions for the model.
         """
-        inputs = self.tokenizer(examples["non-gendered"], return_tensors="pt", max_length=512, truncation=True, padding="max_length")
+        inputs = self.tokenizer(examples["gendered"], return_tensors="pt", max_length=512, truncation=True, padding="max_length")
         input_ids = inputs.input_ids
         attention_mask = inputs.attention_mask
 
@@ -89,7 +88,8 @@ class EvaluateModel:
 
 
 if __name__ == "__main__":
-    experiment_path = Path("experiments", "flan_t5_finetuning", "2025-01-08_11-26-55")
+    experiment_path = Path("experiments", "flan_t5_finetuning_correlaid", "2025-01-09_10-37-49")
+
     model_path = Path(experiment_path, "model")
     save_path = Path(experiment_path, "results")
 
@@ -98,4 +98,4 @@ if __name__ == "__main__":
     test_sentence = "Bringe den Satz in eine ungenderte Form: Die Lehrperson ist cool."
     print("Predicted sentence:", eval_model.eval_with_sentence(test_sentence))
 
-#    eval_model.eval_with_dataset()
+    eval_model.eval_with_dataset()
