@@ -6,7 +6,7 @@ class ExperimentPaths:
     def __init__(
             self, 
             experiment_name: str, 
-            data_folder: str,
+            data_folder: Path,
             base_dir: Path = Path("experiments")):
         """
         A class to organize paths for storing experiment results, models, logs, and datasets.
@@ -24,7 +24,7 @@ class ExperimentPaths:
         
         # Create experiment directory if it doesn't exist
         self._create_experiment_directories()
-        self.data_folder = Path(data_folder)
+        self.data_folder = data_folder
 
     def _create_experiment_directories(self):
         """Create the necessary directories for the experiment."""

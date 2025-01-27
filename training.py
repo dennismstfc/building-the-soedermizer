@@ -8,7 +8,6 @@ from datasets import Dataset
 from peft import LoraConfig, get_peft_model
 import evaluate
 
-from standard_values import TRAIN_DATA_PATH, EVAL_DATA_PATH
 from pathlib import Path
 from folder_structure import ExperimentPaths
 
@@ -141,7 +140,7 @@ if __name__ == "__main__":
         task_type="SEQ_2_SEQ_LM" # OMG THIS WAS THE MISTAKE
     )
 
-    experiment_paths = ExperimentPaths("flan_t5_finetuning_long_forrm", "long_form_data")
+    experiment_paths = ExperimentPaths("flan_t5_finetuning_inclusive_form", "inclusive_data")
 
     training_args = Seq2SeqTrainingArguments(
         output_dir=experiment_paths.get_output_path(),

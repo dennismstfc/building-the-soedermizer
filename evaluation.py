@@ -1,9 +1,8 @@
 import pandas as pd
 
-from transformers import T5Tokenizer, T5ForConditionalGeneration, Trainer, TrainingArguments
+from transformers import T5Tokenizer, T5ForConditionalGeneration
 from datasets import Dataset
 
-from standard_values import TEST_DATA_PATH
 from pathlib import Path
 from tqdm import tqdm
 
@@ -32,7 +31,7 @@ class EvaluateModel:
         self.dataset_columns = dataset_columns
         self.prefix = prefix
 
-    def eval_with_dataset(self, test_data_path: Path = TEST_DATA_PATH) -> None:
+    def eval_with_dataset(self, test_data_path: Path) -> None:
         """
         Evaluate the model with the test dataset. The method generates predictions for the non-gendered
         sentences and saves the results to a csv file.
@@ -115,7 +114,8 @@ if __name__ == "__main__":
     test_sentence = "Bringe den Satz in eine ungenderte Form: Die Lehrer*innen sind cool."
     print("Predicted sentence:", eval_model.eval_with_sentence(test_sentence))
 
-#    eval_model.eval_with_dataset()
+    test_data_path = Path("data", "standard", "test.csv")
+    eval_model.eval_with_dataset()
 
 
     # Second experiment: translation from gendered sentences into inclusive form
@@ -133,5 +133,5 @@ if __name__ == "__main__":
     test_sentence = "Bringe den Satz in eine inklusive Form: Die Lehrer*innen sind cool."
     print("Predicted sentence:", eval_model.eval_with_sentence(test_sentence))
 
-    test_data_path = Path("long_form_data", "test.csv")
+    test_data_path = Path("data", "inclusive_form", "test.csv")
     eval_model.eval_with_dataset(test_data_path)

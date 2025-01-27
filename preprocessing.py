@@ -2,7 +2,6 @@ import pandas as pd
 from pathlib import Path
 from enum import Enum
 from tqdm import tqdm
-from standard_values import *
 
 from data_enhancer import find_inclusive_form
 from sentence_structure import Sentence
