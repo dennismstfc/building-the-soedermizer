@@ -4,6 +4,7 @@ datasets
 evaluate
 kaggle
 numpy
+openai
 pandas
 peft
 sentencepiece
