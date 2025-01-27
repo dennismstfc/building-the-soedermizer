@@ -1,0 +1,11 @@
+accelerate
+bitsandbytes
+datasets
+evaluate
+kaggle
+numpy
+pandas
+peft
+sentencepiece
+transformers[torch]
+tqdm
