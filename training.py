@@ -22,9 +22,9 @@ class ModelTraining:
             training_args: Seq2SeqTrainingArguments,
             lora_config: LoraConfig,
             experiment_paths: ExperimentPaths,
+            dataset_columns: list = ["non_gendered", "gendered"], # First: target sentence, second: input sentence
             model_name: str = "google/flan-t5-small",
-            train_data_path: Path = TRAIN_DATA_PATH,
-            eval_data_path: Path = EVAL_DATA_PATH
+            prefix: str = "Bringe den Satz in eine genderneutrale Form: "
     ):
         self.training_args = training_args
         self.lora_config = lora_config
@@ -32,6 +32,9 @@ class ModelTraining:
 
         self.model_save_path = experiment_paths.get_model_save_path()
         self.results_path = experiment_paths.get_results_path()
+
+        train_data_path = experiment_paths.get_train_data_path()
+        eval_data_path = experiment_paths.get_eval_data_path()
         
         # Make sure the train and eval paths exist
         if not train_data_path.exists():
@@ -41,19 +44,21 @@ class ModelTraining:
             raise FileNotFoundError(f"Cannot find evaluation data at {eval_data_path}.")
 
         self.train_data_path = train_data_path
-        self.eval_data_path = eval_data_path
+        self.eval_data_path = eval_data_path 
 
         self.losses = []
+        self.dataset_columns = dataset_columns
+        self.prefix = prefix
 
     @staticmethod
-    def load_dataset(path: Path) -> Dataset:
+    def load_dataset(path: Path, dataset_columns: list) -> Dataset:
         df = pd.read_csv(path)
-        df = df[["non_gendered", "gendered"]]
+        df = df[dataset_columns]
         return Dataset.from_pandas(df)
 
     def train_model(self) -> None:
-        train_dataset = self.load_dataset(self.train_data_path)
-        eval_dataset = self.load_dataset(self.eval_data_path)
+        train_dataset = self.load_dataset(self.train_data_path, self.dataset_columns)
+        eval_dataset = self.load_dataset(self.eval_data_path, self.dataset_columns)
 
         self.tokenizer = T5Tokenizer.from_pretrained(self.model_name, legacy_format=False)
 
@@ -96,13 +101,12 @@ class ModelTraining:
         model.save_pretrained(self.model_save_path)
         self.tokenizer.save_pretrained(self.model_save_path)
 
-        self.log_history = trainer.state.log_history
-
-
     def __preprocess_data(self, examples) -> dict:
-        prefix = "Bringe den Satz in eine ungenderte Form: "
-        inputs = [prefix + sentence for sentence in examples["gendered"]] # Use the gendered sentences as input
-        targets = examples["non_gendered"] # and try to predict the non-gendered sentences
+        input_column = self.dataset_columns[1]
+        target_column = self.dataset_columns[0]
+
+        inputs = [self.prefix + sentence for sentence in examples[input_column]] # Use the gendered sentences as input
+        targets = examples[target_column] # and try to predict the non-gendered sentences
 
         model_inputs = self.tokenizer(
             inputs, max_length=512, truncation=True)
@@ -129,7 +133,6 @@ class ModelTraining:
 
         return {"bleu": bleu_score["score"]}
     
-
 if __name__ == "__main__":
     lora_config = LoraConfig(
         r=8,  # Low-rank dimension
@@ -138,7 +141,7 @@ if __name__ == "__main__":
         task_type="SEQ_2_SEQ_LM" # OMG THIS WAS THE MISTAKE
     )
 
-    experiment_paths = ExperimentPaths("flan_t5_finetuning_correlaid")
+    experiment_paths = ExperimentPaths("flan_t5_finetuning_long_forrm", "long_form_data")
 
     training_args = Seq2SeqTrainingArguments(
         output_dir=experiment_paths.get_output_path(),
@@ -160,5 +163,12 @@ if __name__ == "__main__":
         greater_is_better=False
     )
 
-    model_training = ModelTraining(training_args, lora_config, experiment_paths)
+    model_training = ModelTraining(
+        training_args, 
+        lora_config, 
+        experiment_paths, 
+        dataset_columns=["enhanced", "gendered"],
+        prefix = "Bringe den Satz in eine inklusive Form: "
+        )
+
     model_training.train_model()
