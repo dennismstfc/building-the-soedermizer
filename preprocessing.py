@@ -1,96 +1,160 @@
 import pandas as pd
 from pathlib import Path
-
+from enum import Enum
+from tqdm import tqdm
 from standard_values import *
 
+from data_enhancer import find_inclusive_form
+from sentence_structure import Sentence
 
-class Sentence:
-    """
-    A class to represent a sentence of the dataset. It contains
-    a method to generate all possible combinations of gendered and non-gendered sentences.
-    """
-    def __init__(self, row: dict):
-        # Non-gendered sentences
-        maskulinum = row["maskulinum"]
-        femininum = row["femininum"]
-        self.non_gendered = [maskulinum, femininum]
+import random
+random.seed(42) # For reproducibility
 
-        # Gendered
-        neutral = row["neutral"]
-        doppelpunkt = row["inkl_Doppelpunkt"]
-        unterstrich = row["inkl_Unterstrich"]
-        sternchen = row["inkl_Sternchen"]
-        schraegstrich = row["inkl_Schrägstrich"]
-        grossbuchstaben = row["inkl_Grossbuchstaben"]
-        self.gendered = [neutral, doppelpunkt, unterstrich, sternchen, schraegstrich, grossbuchstaben]
 
-    def subset_all_combinations(self) -> pd.DataFrame:
+class Mode(Enum):
+    STANDARD = "standard"
+    INCLUSIVE_FORM = "inclusive_form"
+
+
+class DatasetCreator:
+    def __init__(
+            self, 
+            raw_data_path: Path,
+            save_folder: Path,
+            split_data: bool = True,
+            split_ratio: tuple = (0.8, 0.1, 0.1),
+            shuffle: bool = True
+            ):
         """
-        Return a dataframe with all possible combinations of gendered and non-gendered sentences.
+        :param raw_data_path: The path to the raw data to process.
+        :param save_folder: The folder to save the processed data.
+        :param split_data: Whether to split the data into train, eval and test sets.
+        :param split_ratio: The ratio to split the data into train, eval and test sets.
+        :param shuffle: Whether to shuffle the data before splitting.
         """
-        df = pd.DataFrame()
 
-        gendered = []
-        non_gendered = []
+        if not save_folder.exists():
+            save_folder.mkdir(parents=True)
 
-        for gendered_sentence in self.gendered:
-            for non_gendered_sentence in self.non_gendered:
-                gendered.append(gendered_sentence)
-                non_gendered.append(non_gendered_sentence)
+        self.save_folder = save_folder
+
+        if not raw_data_path.exists():
+            raise FileNotFoundError(f"Cannot find data to process at {raw_data_path}.")
+
+        self.raw_data = pd.read_csv(raw_data_path)
+
+        if split_data:
+            if sum(split_ratio) != 1:
+                raise ValueError("The split ratio must sum up to 1.")
+                    
+            self.ratio = split_ratio
+            self.shuffle = shuffle
+
+            self.train_data_path = Path(save_folder, "train.csv")
+            self.eval_data_path = Path(save_folder, "eval.csv")
+            self.test_data_path = Path(save_folder, "test.csv")
         
-        df["gendered"] = gendered
-        df["non_gendered"] = non_gendered
-
-        return df
-    
-
-def generate_dataset(
-        data_path: Path, 
-        save_folder: Path = DATA_PATH, 
-        split_ratio: tuple = (0.8, 0.1, 0.1)
-        ) -> None:
-
-    # Check if the split ratio is valid
-    if sum(split_ratio) != 1:
-        raise ValueError("The split ratio must sum up to 1.")
-
-    # Make sure that data_path exists
-    if not data_path.exists():
-        raise FileNotFoundError(f"Cannot find data at {data_path}.")
-
-    save_path = Path(save_folder, "all_combinations.csv")
-
-    data = pd.read_csv(data_path)
-
-    all_combinations = pd.DataFrame()
-    for _, row in data.iterrows():
-        sentence = Sentence(row)
-        all_combinations = pd.concat([
-            all_combinations, sentence.subset_all_combinations()], ignore_index=True)
+        self.split_data = split_data
         
-    all_combinations = all_combinations.dropna()
-    all_combinations.to_csv(save_path, index=False)
-
-    # shuffle the dataset
-    all_combinations = all_combinations.sample(frac=1).reset_index(drop=True)
-
-    # Split the dataset into train, test and validation
-    train_size = int(len(all_combinations) * split_ratio[0])
-    eval_size = int(len(all_combinations) * split_ratio[1])
-
-    train_df = all_combinations[:train_size]
-    eval_df = all_combinations[train_size:train_size + eval_size]
-    test_df = all_combinations[train_size + eval_size:]
-
-    train_df.to_csv(TRAIN_DATA_PATH, index=False)
-    eval_df.to_csv(EVAL_DATA_PATH, index=False)
-    test_df.to_csv(TEST_DATA_PATH, index=False)
-
-    print("Train: ", len(train_df))
-    print("Eval: ", len(eval_df))
-    print("Test: ", len(test_df))
-
     
+    def _split_data(self, data: pd.DataFrame):
+        """
+        :param data: The dataset to split as a pandas DataFrame.
+        """
+        if self.shuffle:
+            data = data.sample(frac=1).reset_index(drop=True)
+
+        train_size = int(len(data) * self.ratio[0])
+        eval_size = int(len(data) * self.ratio[1])
+
+        train_df = data[:train_size]
+        eval_df = data[train_size:train_size + eval_size]
+        test_df = data[train_size + eval_size:]
+
+        train_df.to_csv(self.train_data_path, index=False)
+        eval_df.to_csv(self.eval_data_path, index=False)
+        test_df.to_csv(self.test_data_path, index=False)
+
+        print("Train: ", len(train_df))
+        print("Eval: ", len(eval_df))
+        print("Test: ", len(test_df))
+
+    def _generate_standard_dataset(self):
+        """
+        Generate the standard dataset with all possible combinations of gendered and non-gendered sentences.
+        (maskulinum, femininum) x (neutral, doppelpunkt, unterstrich, sternchen, schraegstrich, grossbuchstaben) 
+        """
+        all_combinations = pd.DataFrame()
+        
+        for _, row in self.raw_data.iterrows():
+            sentence = Sentence(row)
+            all_combinations = pd.concat([
+                all_combinations, sentence.subset_all_combinations()], ignore_index=True)
+
+        all_combinations = all_combinations.dropna()
+        all_combinations.to_csv(self.full_dataset_path, index=False)
+
+        if self.split_data:
+            self._split_data(all_combinations)
+    
+    def _generate_long_form_dataset(self):
+        """
+        Generate the long form dataset with the gendered sentence and the inclusive sentence.
+        """
+        final_data = pd.DataFrame(columns=["index", "gendered", "inclusive_form"])
+        final_data.to_csv(self.full_dataset_path, index=False) # Save the empty dataframe for continuous appending
+
+        for idx, row in tqdm(self.raw_data.iterrows()):
+            final_data = pd.read_csv(self.full_dataset_path)
+            
+            # Check if the sentence is already in the dataset, if so, skip to save GPT requests
+            if int(idx) in final_data["index"].values:
+                continue
+
+            sentence = Sentence(row)
+            random_choice = random.choice(sentence.gendered_sentences)
+
+            tmp_df = pd.DataFrame({
+                "index": [idx],
+                "gendered": [random_choice],
+                "inclusive_form": [find_inclusive_form(random_choice)]
+            })
+
+            final_data = pd.concat([final_data, tmp_df], ignore_index=True)
+            final_data.to_csv(self.full_dataset_path, index=False)
+
+    def generate_dataset(
+            self, 
+            mode: Mode = Mode.STANDARD, 
+            ) -> None:	
+        """
+        Generate the dataset based on the mode.
+        :param mode: The mode of the dataset to generate. Select standard for all possible combinations of gendered 
+        and non-gendered sentences. Select inclusive for the gendered sentence with longer/inclusive formulations.
+        :param save_folder: The folder to save the dataset.
+        """
+        if not mode in Mode:
+            raise ValueError(f"Invalid mode. Expected values: {[el.value for el in Mode]}.")
+        
+        self.save_folder /= mode.value 
+        print("Saving to: ", self.save_folder)
+
+        if not save_folder.exists():
+            save_folder.mkdir(parents=True)
+        
+        self.full_dataset_path = Path(self.save_folder, "full_dataset.csv")
+
+        if mode == "standard":
+            self._generate_standard_dataset()
+        else:
+            self._generate_long_form_dataset()
+            
+
 if __name__ == "__main__":
-    data_path = Path("data", "sentences.csv")
-    generate_dataset(data_path)
+    # Generate the standard dataset
+    raw_data_path = Path("sentences.csv")
+    save_folder = Path("test")
+
+    dataset_creator = DatasetCreator(raw_data_path, save_folder)
+    dataset_creator.generate_dataset(mode=Mode.STANDARD)
+    dataset_creator.generate_dataset(mode=Mode.INCLUSIVE_FORM)
