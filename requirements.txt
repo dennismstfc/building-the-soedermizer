@@ -3,6 +3,7 @@ bitsandbytes
 datasets
 evaluate
 kaggle
+matplotlib
 numpy
 openai
 pandas
