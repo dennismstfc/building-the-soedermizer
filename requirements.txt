@@ -6,6 +6,7 @@ kaggle
 matplotlib
 numpy
 openai
+openpyxl
 pandas
 peft
 sentencepiece
