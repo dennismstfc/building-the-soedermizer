@@ -34,9 +34,9 @@ class Sentence:
         Checks the difference between two sentences. Diff is calculated as the symmetric
         difference between the two sentences. The substraction operator returns the length 
         of the difference. If the difference is 2, then most likely another gender is used 
-        in the prediction sentence. E.g. "Der Bäcker hat gebacken" (true value) vs. "Die Bäckerin" 
-        (predicted value) would return 2. Since the translation task was designed to not 
-        differentiate between the maskulin and feminin form, a difference of 2 is acceptable.
+        in the prediction sentence. E.g. "Der Bäcker hat gebacken" (true value) vs. "Die Bäckerin
+        hat gebacken" (predicted value) would return 2. Since the translation task was designed 
+        to not differentiate between the maskulin and feminin form, a difference of 2 is acceptable.
         :param other: Another Sentence object
         """
         sentence_a = self.lower
@@ -99,4 +99,46 @@ if __name__ == '__main__':
 
     # Save the results into an excel file
     path = Path(dataset_1_subfolder, "dataset_1_results.xlsx")
-    save_into_excel(dataset_1_not_equal, path)
+#    save_into_excel(dataset_1_not_equal, path)
+
+    # Load the manually evaluated dataset
+    dataset_1_evaluated_path = Path(dataset_1_subfolder, "dataset_1_results.xlsx")
+    dataset_1_evaluated = pd.read_excel(dataset_1_evaluated_path)
+
+    dataset_1_evaluated = dataset_1_evaluated[["difference", "is_equal"]]
+    dataset_1_evaluated["is_equal"] = dataset_1_evaluated["is_equal"].apply(lambda x: x == "X")
+
+    max_difference = dataset_1_evaluated["difference"].max()
+    min_difference = dataset_1_evaluated["difference"].min()
+    difference_accuracy = {}
+
+    for act_diff in range(min_difference, max_difference + 1):
+        act_diff_df = dataset_1_evaluated[dataset_1_evaluated["difference"] == act_diff]
+        
+        # For the last four differences, take only the first 50 data points.
+        # Due to the time consuming manual evaluation, only the first 50 data points were evaluated.
+        if act_diff < 5:
+            act_diff_df = act_diff_df.head(50)
+
+        act_diff_df = act_diff_df["is_equal"].value_counts(normalize=True)
+
+        # Just take the true values as the accuracy
+        difference_accuracy[act_diff] = act_diff_df[True]
+    
+    print(difference_accuracy)
+
+    plt.figure(figsize=(10, 5))
+    pd.DataFrame(difference_accuracy).T.plot(kind='bar', stacked=True)
+    plt.xlabel("Difference of words")	
+    plt.ylabel("Accuracy")
+    plt.title("Accuracy of the translation task no. 1")
+
+    plt.show()
+
+    # Sum all the precisions up and divide by the number of differences
+    total_precision = 0
+    for key, value in difference_accuracy.items():
+        total_precision += value[True]
+
+    total_precision /= len(difference_accuracy)
+    print(f"Total precision: {total_precision}")
