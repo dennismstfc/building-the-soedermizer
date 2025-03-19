@@ -64,6 +64,7 @@ class Sentence:
 
 
 if __name__ == '__main__':
+    # Testing the Sentence class
     sentence_1 = Sentence("This is a test sentence")
     sentence_2 = Sentence("This is a test example ")
     print(sentence_1 - sentence_2)
@@ -97,9 +98,11 @@ if __name__ == '__main__':
     dataset_1_not_equal = dataset_1[dataset_1["equal"] == False]
     dataset_1_not_equal.sort_values(by="difference", ascending=False, inplace=True)
 
+    """
     # Save the results into an excel file
     path = Path(dataset_1_subfolder, "dataset_1_results.xlsx")
-#    save_into_excel(dataset_1_not_equal, path)
+    save_into_excel(dataset_1_not_equal, path)
+    """
 
     # Load the manually evaluated dataset
     dataset_1_evaluated_path = Path(dataset_1_subfolder, "dataset_1_results.xlsx")
@@ -114,31 +117,31 @@ if __name__ == '__main__':
 
     for act_diff in range(min_difference, max_difference + 1):
         act_diff_df = dataset_1_evaluated[dataset_1_evaluated["difference"] == act_diff]
+
+        # It can be the case that a certain difference does not exist within the span
+        if act_diff_df.empty:
+            continue
         
         # For the last four differences, take only the first 50 data points.
         # Due to the time consuming manual evaluation, only the first 50 data points were evaluated.
+        # Look into the according paper for more information.
         if act_diff < 5:
             act_diff_df = act_diff_df.head(50)
 
+        number_vals = act_diff_df.shape[0]
         act_diff_df = act_diff_df["is_equal"].value_counts(normalize=True)
 
-        # Just take the true values as the accuracy
-        difference_accuracy[act_diff] = act_diff_df[True]
+        difference_accuracy[act_diff] = [number_vals, 1 - act_diff_df[False].item()]
     
+    difference_accuracy[0] = [dataset_1[dataset_1["difference"] == 0].shape[0], 1.0]
+
     print(difference_accuracy)
 
-    plt.figure(figsize=(10, 5))
-    pd.DataFrame(difference_accuracy).T.plot(kind='bar', stacked=True)
+    pd.DataFrame(difference_accuracy).T.plot(kind='bar', stacked=False)
     plt.xlabel("Difference of words")	
     plt.ylabel("Accuracy")
     plt.title("Accuracy of the translation task no. 1")
 
     plt.show()
 
-    # Sum all the precisions up and divide by the number of differences
-    total_precision = 0
-    for key, value in difference_accuracy.items():
-        total_precision += value[True]
-
-    total_precision /= len(difference_accuracy)
-    print(f"Total precision: {total_precision}")
+    # TODO: Calculate the overall accuracy
