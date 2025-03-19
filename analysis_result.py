@@ -144,4 +144,10 @@ if __name__ == '__main__':
 
     plt.show()
 
-    # TODO: Calculate the overall accuracy
+    # Weighted average accuracy calculation
+    overall_acc = 0
+    for key, value in difference_accuracy.items():
+        overall_acc += value[0] * value[1]
+    
+    overall_acc = overall_acc / sum([value[0] for value in difference_accuracy.values()])
+    print(overall_acc)
