@@ -67,8 +67,8 @@ if __name__ == '__main__':
     # Testing the Sentence class
     sentence_1 = Sentence("This is a test sentence")
     sentence_2 = Sentence("This is a test example ")
-    print(sentence_1 - sentence_2)
-    print(sentence_1 == sentence_2)
+    print(f"Sentence 1: {sentence_1.sentence}, Sentence 2: {sentence_2.sentence}")
+    print("Symmetric word difference: ", sentence_1 - sentence_2)
 
     # Load the dataset
     dataset_1_subfolder = Path("experiments", "flan_t5_finetuning_correlaid", "2025-01-09_10-37-49", "results")
@@ -93,16 +93,17 @@ if __name__ == '__main__':
 
     path = Path(dataset_1_subfolder, "dataset_1_hist_word_differences.png")
     plt.savefig(path)
+    plt.show()
 
     # Take all that are not equal
     dataset_1_not_equal = dataset_1[dataset_1["equal"] == False]
     dataset_1_not_equal.sort_values(by="difference", ascending=False, inplace=True)
 
-    """
     # Save the results into an excel file
     path = Path(dataset_1_subfolder, "dataset_1_results.xlsx")
-    save_into_excel(dataset_1_not_equal, path)
-    """
+
+    # Don't uncomment the subsequent line, since the dataset was already manually evaluated
+#    save_into_excel(dataset_1_not_equal, path)
 
     # Load the manually evaluated dataset
     dataset_1_evaluated_path = Path(dataset_1_subfolder, "dataset_1_results.xlsx")
@@ -135,13 +136,14 @@ if __name__ == '__main__':
     
     difference_accuracy[0] = [dataset_1[dataset_1["difference"] == 0].shape[0], 1.0]
 
-    print(difference_accuracy)
-
-    pd.DataFrame(difference_accuracy).T.plot(kind='bar', stacked=False)
+    plt.bar(difference_accuracy.keys(), [value[1] for value in difference_accuracy.values()])
     plt.xlabel("Difference of words")	
     plt.ylabel("Accuracy")
-    plt.title("Accuracy of the translation task no. 1")
+    plt.title("Per difference accuracy for translation task 1")
+    plt.tight_layout()
 
+    path = Path(dataset_1_subfolder, "dataset_1_per_difference_accuracy.png")
+    plt.savefig(path)
     plt.show()
 
     # Weighted average accuracy calculation
@@ -150,4 +152,83 @@ if __name__ == '__main__':
         overall_acc += value[0] * value[1]
     
     overall_acc = overall_acc / sum([value[0] for value in difference_accuracy.values()])
-    print(overall_acc)
+
+    print(50 * "-")
+    print("Dataset 1")
+    print(f"Per difference accuracy: {difference_accuracy}")
+    print(f"Overall accuracy: {overall_acc}")
+
+    # Manual evaluation of the GPT generated data
+    gpt_data_subfolder = Path("data", "inclusive_form", "v1")
+    gpt_data_path = Path(gpt_data_subfolder, "full_dataset.csv")
+    gpt_data = pd.read_csv(gpt_data_path)
+
+    # Target value = inclusive_form
+    gpt_data.rename(columns={"enhanced": "inclusive_form"}, inplace=True)
+    gpt_data = gpt_data[["gendered", "inclusive_form"]]
+    gpt_data.insert(1, "succeeded", "")
+    gpt_data.insert(1, "changed_meaning", "")
+    gpt_data.insert(1, "hallucination", "")
+    
+    gpt_data_save_path = Path(gpt_data_subfolder, "manual_evaluation.xlsx")
+    # Don't uncomment the subsequent line, since the dataset was already manually evaluated
+#    gpt_data.to_excel(save_path) 
+    
+    # Load the manually evaluated dataset
+    gpt_data_evaluated = pd.read_excel(gpt_data_save_path)
+    
+    # Loading the first 50 rows of the dataset which where manually evaluated
+    gpt_data_evaluated = gpt_data_evaluated.head(50)
+    gpt_data_evaluated["succeeded"] = gpt_data_evaluated["succeeded"].apply(lambda x: x == "X")
+    gpt_data_evaluated["changed_meaning"] = gpt_data_evaluated["changed_meaning"].apply(lambda x: x == "X")
+    gpt_data_evaluated["hallucination"] = gpt_data_evaluated["hallucination"].apply(lambda x: x == "X")
+
+    # Calculate the accuracy of the perfect translations
+    succeeded_acc = gpt_data_evaluated["succeeded"].value_counts(normalize=True)[True]
+    
+    # Calculate the accuaracy with the hallucinations -> hallucination + succeeded
+    hallucination_acc = gpt_data_evaluated["hallucination"].value_counts(normalize=True)[True] + succeeded_acc
+
+    print("")	
+    print(50 * "-")
+    print("GPT-3 Data")
+    print(f"Accuracy of the perfect translations: {succeeded_acc}")
+    print(f"Accuracy of okay-ish translations: {hallucination_acc}")
+    print(f"Percentage of the failed translations: {1 - hallucination_acc}")
+
+    # Checking the results of the flan-t5-small which was trained with the gpt data 
+    dataset_2_subfolder = Path("experiments", "flan_t5_finetuning_inclusive_form", "2025-01-26_19-33-13", "results")
+    dataset_2_path = Path(dataset_2_subfolder, "results.csv")
+    dataset_2 = pd.read_csv(dataset_2_path)
+    
+    dataset_2.rename(columns={"enhanced": "true_value"}, inplace=True)
+    dataset_2.insert(2, "succeeded", "")
+    dataset_2.insert(2, "failed", "")
+    dataset_2.insert(2, "hallucinated", "")
+    
+    dataset_2_save_path = Path(dataset_2_subfolder, "manual_evaluation.xlsx")
+
+    # Don't uncomment the subsequent line, since the dataset was already manually evaluated
+#    dataset_2.to_excel(dataset_2_save_path)
+
+    # Load the manually evaluated dataset
+    dataset_2_evaluated = pd.read_excel(dataset_2_save_path)
+    
+    # As before, only the first 50 data points were manually evaluated
+    dataset_2_evaluated = dataset_2_evaluated.head(50)
+    dataset_2_evaluated["succeeded"] = dataset_2_evaluated["succeeded"].apply(lambda x: x == "X")
+    dataset_2_evaluated["failed"] = dataset_2_evaluated["failed"].apply(lambda x: x == "X")
+    dataset_2_evaluated["hallucinated"] = dataset_2_evaluated["hallucinated"].apply(lambda x: x == "X")
+
+    # Calculate the accuracy of the perfect translations
+    succeeded_acc = dataset_2_evaluated["succeeded"].value_counts(normalize=True)[True]
+
+    # Calculate the accuaracy with the hallucinations -> hallucination + succeeded
+    hallucination_acc = dataset_2_evaluated["hallucinated"].value_counts(normalize=True)[True] + succeeded_acc
+
+    print("")
+    print(50 * "-")
+    print("Dataset 2")
+    print(f"Accuracy of the perfect translations: {succeeded_acc}")
+    print(f"Accuracy of okay-ish translations: {hallucination_acc}")
+    print(f"Percentage of the failed translations: {1 - hallucination_acc}")
