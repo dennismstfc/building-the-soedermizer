@@ -84,17 +84,6 @@ if __name__ == '__main__':
     dataset_1["equal"] = dataset_1.apply(lambda x: x["true_value"] == x["predicted"], axis=1)
     dataset_1["differing_words"] = dataset_1.apply(lambda x: x["true_value"].get_difference(x["predicted"]), axis=1)
 
-    # Visualize the results
-    dataset_1["difference"].value_counts().sort_index().plot(kind='bar')
-    plt.xlabel("Difference of words")
-    plt.ylabel("Amount of sentences")
-    plt.title("Difference of words for translation task no. 1")
-    plt.tight_layout()
-
-    path = Path(dataset_1_subfolder, "dataset_1_hist_word_differences.png")
-    plt.savefig(path)
-    plt.show()
-
     # Take all that are not equal
     dataset_1_not_equal = dataset_1[dataset_1["equal"] == False]
     dataset_1_not_equal.sort_values(by="difference", ascending=False, inplace=True)
@@ -136,14 +125,31 @@ if __name__ == '__main__':
     
     difference_accuracy[0] = [dataset_1[dataset_1["difference"] == 0].shape[0], 1.0]
 
-    plt.bar(difference_accuracy.keys(), [value[1] for value in difference_accuracy.values()])
-    plt.xlabel("Difference of words")	
-    plt.ylabel("Accuracy")
-    plt.title("Per difference accuracy for translation task 1")
-    plt.tight_layout()
+    # Visulization 
+    custom_x_order = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 19]    
+    x_labels = [str(x) for x in custom_x_order]
+    y_values = [difference_accuracy[x][1] for x in custom_x_order]
+    sizes = [difference_accuracy[x][0] for x in custom_x_order]
 
-    path = Path(dataset_1_subfolder, "dataset_1_per_difference_accuracy.png")
-    plt.savefig(path)
+    plt.figure(figsize=(8, 5))
+    plt.scatter(range(len(x_labels)), y_values, s=sizes, alpha=0.5, color="royalblue")
+
+    # Adding crosses
+    for i, size in enumerate(sizes):
+        if size > 100:
+            plt.scatter(i, y_values[i], s=20, color="black", marker="x")
+
+    plt.xlabel("Symmetric word difference")
+    plt.ylabel("Accuracy")
+    plt.title("Accuracy per symmetric word difference")
+    plt.xticks(range(len(x_labels)), x_labels)
+    plt.grid(True, linestyle="--", alpha=0.5)
+
+    plt.ylim(-0.1, 1.2)
+    plt.xlim(-1.2, 12.2)
+
+    bubble_plot_path = Path("experiments", "flan_t5_finetuning_correlaid", "2025-01-09_10-37-49", "results", "bubble_plot.pgf")
+    plt.savefig(bubble_plot_path)
     plt.show()
 
     # Weighted average accuracy calculation
