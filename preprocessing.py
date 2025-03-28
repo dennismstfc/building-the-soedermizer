@@ -3,7 +3,7 @@ from pathlib import Path
 from enum import Enum
 from tqdm import tqdm
 
-from data_enhancer import find_inclusive_form
+from synthetic_data import find_inclusive_form
 from sentence_structure import Sentence
 
 import random
@@ -16,6 +16,9 @@ class Mode(Enum):
 
 
 class DatasetCreator:
+    """
+    Class for creating the dataset for either goal 1 or 2.
+    """
     def __init__(
             self, 
             raw_data_path: Path,
@@ -160,7 +163,7 @@ class DatasetCreator:
 if __name__ == "__main__":
     # Generate the standard dataset
     raw_data_path = Path("sentences.csv")
-    save_folder = Path("test")
+    save_folder = Path("data")
 
     dataset_creator = DatasetCreator(raw_data_path, save_folder)
     dataset_creator.generate_dataset(mode=Mode.STANDARD)
