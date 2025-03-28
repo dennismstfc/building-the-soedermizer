@@ -16,6 +16,9 @@ logging.basicConfig(level=logging.DEBUG)
 
 
 class ModelTraining:
+    """
+    Class for training a model for either goal 1 or 2.
+    """
     def __init__(
             self,
             training_args: Seq2SeqTrainingArguments,
@@ -23,8 +26,16 @@ class ModelTraining:
             experiment_paths: ExperimentPaths,
             dataset_columns: list = ["non_gendered", "gendered"], # First: target sentence, second: input sentence
             model_name: str = "google/flan-t5-small",
-            prefix: str = "Bringe den Satz in eine genderneutrale Form: "
+            prefix: str = "Bringe den Satz in eine inklusive Form: "
     ):
+        """
+        :param training_args: The training arguments for the model training.
+        :param lora_config: The LoRA configuration for the model.
+        :param experiment_paths: The paths to the experiment folders.
+        :param dataset_columns: The columns to be used for the dataset. First: target sentence, second: input sentence.
+        :param model_name: Model checkpoint to be used for the training.
+        :param prefix: The prefix to be used for the input sentences.
+        """
         self.training_args = training_args
         self.lora_config = lora_config
         self.model_name = model_name
@@ -51,11 +62,23 @@ class ModelTraining:
 
     @staticmethod
     def load_dataset(path: Path, dataset_columns: list) -> Dataset:
+        """
+        Load the dataset from the given path and return it as a Hugging Face Dataset. Selects
+        only the columns that are necessary for the training.
+        :param path: The path to the dataset.
+        :param dataset_columns: The columns to be used for the dataset.
+        :return: The dataset as a Hugging Face Dataset.
+        """
+
         df = pd.read_csv(path)
         df = df[dataset_columns]
+        df = df.dropna()  # Drop rows with missing values
         return Dataset.from_pandas(df)
 
     def train_model(self) -> None:
+        """
+        Start the training of the model.
+        """
         train_dataset = self.load_dataset(self.train_data_path, self.dataset_columns)
         eval_dataset = self.load_dataset(self.eval_data_path, self.dataset_columns)
 
@@ -91,8 +114,7 @@ class ModelTraining:
             eval_dataset=eval_dataset,
             callbacks=[early_stopping],
             tokenizer=self.tokenizer,
-            data_collator=data_collator,
-#            compute_metrics=self.__compute_metrics
+            data_collator=data_collator
         )
 
         trainer.train()
@@ -101,6 +123,12 @@ class ModelTraining:
         self.tokenizer.save_pretrained(self.model_save_path)
 
     def __preprocess_data(self, examples) -> dict:
+        """
+        Preprocessing method for the dataset in which tokenization and further
+        preprocessing steps are performed.
+        :param examples: A dictionary containing the input and target sentences.
+        :return: A dictionary containing the tokenized input and target sentences.
+        """
         input_column = self.dataset_columns[1]
         target_column = self.dataset_columns[0]
 
@@ -120,17 +148,6 @@ class ModelTraining:
 
         return model_inputs
     
-    def __compute_metrics(self, eval_pred) -> dict:
-        predictions, labels = eval_pred
-        # Ensure labels are not padded
-        labels = np.where(labels != -100, labels, self.tokenizer.pad_token_id)
-        decoded_preds = self.tokenizer.batch_decode(predictions, skip_special_tokens=True)
-        decoded_labels = self.tokenizer.batch_decode(labels, skip_special_tokens=True)
-
-        google_bleu = evaluate.load("google_bleu")
-        bleu_score = google_bleu.compute(predictions=decoded_preds, references=decoded_labels)
-
-        return {"bleu": bleu_score["score"]}
     
 if __name__ == "__main__":
     lora_config = LoraConfig(
@@ -140,7 +157,47 @@ if __name__ == "__main__":
         task_type="SEQ_2_SEQ_LM" # OMG THIS WAS THE MISTAKE
     )
 
-    experiment_paths = ExperimentPaths("flan_t5_finetuning_inclusive_form", "inclusive_data")
+    # Goal 1: gender-sensitive -> generic masculine/feminine
+    experiment_paths = ExperimentPaths(
+        experiment_name="flan_t5_finetuning_correlaid", 
+        data_folder=Path("data", "standard")
+        )
+    
+    training_args = Seq2SeqTrainingArguments(
+        output_dir=experiment_paths.get_output_path(),
+        eval_strategy="steps",
+        eval_steps=1000,
+        logging_strategy="steps",
+        logging_steps=100,
+        save_steps= 1000,
+        learning_rate=5e-5,
+        per_device_train_batch_size=8,
+        per_device_eval_batch_size=8,
+        num_train_epochs=2000,
+        weight_decay=0.01,
+        save_total_limit=1,
+        logging_dir=experiment_paths.get_logs_path(),
+        push_to_hub=False,
+        load_best_model_at_end=True,
+        metric_for_best_model="eval_loss",
+        greater_is_better=False
+    )
+
+    model_training_g1 = ModelTraining(
+        training_args,
+        lora_config,
+        experiment_paths,
+        prefix="Bringe den Satz in eine generische Maskuline/Feminine Form: "
+        )
+    
+    model_training_g1.train_model()
+
+
+    # Goal 2: gender-sensitive -> gender-inclusive
+    experiment_paths = ExperimentPaths(
+        experiment_name="flan_t5_finetuning_inclusive_form", 
+        data_folder=Path("data", "inclusive_form")
+        )
 
     training_args = Seq2SeqTrainingArguments(
         output_dir=experiment_paths.get_output_path(),
@@ -162,12 +219,12 @@ if __name__ == "__main__":
         greater_is_better=False
     )
 
-    model_training = ModelTraining(
+    model_training_g2 = ModelTraining(
         training_args, 
         lora_config, 
         experiment_paths, 
-        dataset_columns=["enhanced", "gendered"],
+        dataset_columns=["inclusive_form", "gendered"],
         prefix = "Bringe den Satz in eine inklusive Form: "
         )
 
-    model_training.train_model()
+    model_training_g2.train_model()
