@@ -8,6 +8,9 @@ from tqdm import tqdm
 
 
 class EvaluateModel:
+    """
+    Class for evaluating the model for either goal 1 or 2 using test data.
+    """
     def __init__(
             self, 
             model_path: Path,
@@ -23,7 +26,6 @@ class EvaluateModel:
         :param dataset_columns: The columns of the dataset. The first column should be the target sentence, the second the input sentence.
         :param prefix: The prefix to add to the input sentence, being for example "Übersetze den Satz in XY: ".
         """
-
         self.model = T5ForConditionalGeneration.from_pretrained(model_path)
         self.tokenizer = T5Tokenizer.from_pretrained(model_path)
         self.save_path = save_path / "results.csv"
@@ -76,6 +78,8 @@ class EvaluateModel:
     def __generate_predictions(self, examples) -> dict:
         """
         Generate predictions for the model.
+        :param examples: The examples to generate predictions for.
+        :return: The generated predictions.
         """
         inputs = self.tokenizer(examples[self.dataset_columns[0]], return_tensors="pt", max_length=512, truncation=True, padding="max_length")
         input_ids = inputs.input_ids
@@ -103,7 +107,7 @@ class EvaluateModel:
 
 
 if __name__ == "__main__":
-    # First experiment: translation from gendered to non-gendered sentences
+    # Evaluation of goal 1
     experiment_path = Path("experiments", "flan_t5_finetuning_correlaid", "2025-01-09_10-37-49")
 
     model_path = Path(experiment_path, "model")
@@ -115,10 +119,10 @@ if __name__ == "__main__":
     print("Predicted sentence:", eval_model.eval_with_sentence(test_sentence))
 
     test_data_path = Path("data", "standard", "test.csv")
-    eval_model.eval_with_dataset()
+    eval_model.eval_with_dataset(test_data_path)
 
 
-    # Second experiment: translation from gendered sentences into inclusive form
+    # Evaluation of goal 2
     experiment_path = Path("experiments", "flan_t5_finetuning_inclusive_form", "2025-01-26_19-33-13")
     model_path = Path(experiment_path, "model")
     save_path = Path(experiment_path, "results")
@@ -126,12 +130,12 @@ if __name__ == "__main__":
     eval_model = EvaluateModel(
         model_path, 
         save_path, 
-        dataset_columns=["gendered", "enhanced"], 
+        dataset_columns=["enhanced", "gendered"], 
         prefix = "Bringe den Satz in eine inklusive Form: "
         )
 
     test_sentence = "Bringe den Satz in eine inklusive Form: Die Lehrer*innen sind cool."
     print("Predicted sentence:", eval_model.eval_with_sentence(test_sentence))
 
-    test_data_path = Path("data", "inclusive_form", "test.csv")
+    test_data_path = Path("data", "inclusive_form", "v1", "test.csv")
     eval_model.eval_with_dataset(test_data_path)
