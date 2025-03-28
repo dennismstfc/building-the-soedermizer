@@ -2,6 +2,8 @@ import pandas as pd
 from pathlib import Path
 import matplotlib.pyplot as plt
 
+from sentence_structure import SentenceEvaluator
+
 def save_into_excel(
         dataframe: pd.DataFrame, path: Path) -> None:
     """
@@ -20,53 +22,12 @@ def save_into_excel(
     transformed_df.to_excel(path)
 
 
-class Sentence:
-    def __init__(self, sentence: str) -> None:
-        sentence_raw = sentence.strip()
-        self.sentence = sentence_raw.replace("\n", " ")
-        
-        lower = self.sentence.lower()
-        self.lower = lower.split()
-
-
-    def __sub__(self, other) -> int:
-        """
-        Checks the difference between two sentences. Diff is calculated as the symmetric
-        difference between the two sentences. The substraction operator returns the length 
-        of the difference. If the difference is 2, then most likely another gender is used 
-        in the prediction sentence. E.g. "Der Bäcker hat gebacken" (true value) vs. "Die Bäckerin
-        hat gebacken" (predicted value) would return 2. Since the translation task was designed 
-        to not differentiate between the maskulin and feminin form, a difference of 2 is acceptable.
-        :param other: Another Sentence object
-        """
-        sentence_a = self.lower
-        sentence_b = other.lower
-
-        diff = set(sentence_a) ^ set(sentence_b)
-        return len(diff)
-    
-    def get_difference(self, other) -> set:
-        """
-        Checks the difference between two sentences. 
-        :param other: Another Sentence object
-        """
-        sentence_a = self.lower
-        sentence_b = other.lower
-
-        return set(sentence_a) ^ set(sentence_b)
-
-    def __eq__(self, other):
-        """
-        Checks if two sentences are equal.
-        :param other: Another Sentence object
-        """
-        return self.lower == other.lower
 
 
 if __name__ == '__main__':
     # Testing the Sentence class
-    sentence_1 = Sentence("This is a test sentence")
-    sentence_2 = Sentence("This is a test example ")
+    sentence_1 = SentenceEvaluator("This is a test sentence")
+    sentence_2 = SentenceEvaluator("This is a test example ")
     print(f"Sentence 1: {sentence_1.sentence}, Sentence 2: {sentence_2.sentence}")
     print("Symmetric word difference: ", sentence_1 - sentence_2)
 
@@ -76,8 +37,8 @@ if __name__ == '__main__':
     dataset_1 = pd.read_csv(dataset_1_path)
     dataset_1.rename(columns={'non_gendered': 'true_value'}, inplace=True)
 
-    dataset_1["predicted"] = dataset_1["predicted"].apply(lambda x: Sentence(x))
-    dataset_1["true_value"] = dataset_1["true_value"].apply(lambda x: Sentence(x))
+    dataset_1["predicted"] = dataset_1["predicted"].apply(lambda x: SentenceEvaluator(x))
+    dataset_1["true_value"] = dataset_1["true_value"].apply(lambda x: SentenceEvaluator(x))
     
     # Analysis
     dataset_1["difference"] = dataset_1.apply(lambda x: x["true_value"] - x["predicted"], axis=1)
@@ -199,7 +160,7 @@ if __name__ == '__main__':
     print(50 * "-")
     print("GPT-3 Data")
     print(f"Accuracy of the perfect translations: {succeeded_acc}")
-    print(f"Accuracy of okay-ish translations: {hallucination_acc}")
+    print(f"Accuracy of factually correct translations: {hallucination_acc}")
     print(f"Percentage of the failed translations: {1 - hallucination_acc}")
 
     # Checking the results of the flan-t5-small which was trained with the gpt data 
@@ -236,5 +197,5 @@ if __name__ == '__main__':
     print(50 * "-")
     print("Dataset 2")
     print(f"Accuracy of the perfect translations: {succeeded_acc}")
-    print(f"Accuracy of okay-ish translations: {hallucination_acc}")
+    print(f"Accuracy of syntactially correct translations: {hallucination_acc}")
     print(f"Percentage of the failed translations: {1 - hallucination_acc}")
