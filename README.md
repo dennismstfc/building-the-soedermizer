@@ -72,7 +72,13 @@ The automated dataset creation approach failed due to several reasons:
 
 As described in Section 3.3.1 in `building_the_soedermizer.pdf`, these issues rendered the generated dataset unsuitable, leading to the decision to utilize a curated gold-standard dataset instead.
 
-## 3. Train Model  
+## 3. Dataset Creation for Goal 1 + 2
+1. **Run the preprocessing script:**
+    ```bash
+    python preprocessing.py
+    ```
+
+## 4. Train Model  
 1. **Install PyTorch:**
     ```bash
     pip3 install torch --index-url https://download.pytorch.org/whl/cu124
@@ -84,7 +90,7 @@ As described in Section 3.3.1 in `building_the_soedermizer.pdf`, these issues re
     python training.py
     ```
 
-## 4. Model Evaluation  
+## 5. Model Evaluation  
 1. **Generate Predictions:**
     ```bash
     python evaluation.py
