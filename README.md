@@ -60,6 +60,7 @@ fleißig.
 ## 2. Create Dataset (Failed Attempt)  
 1. **Run the dataset script:**
     ```bash
+    cd archive
     python dataset.py
     ```
 
