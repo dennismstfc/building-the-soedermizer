@@ -1,14 +1,17 @@
 accelerate
 bitsandbytes
+beautifulsoup4
 datasets
 evaluate
 kaggle
+language_tool_python
 matplotlib
 numpy
 openai
 openpyxl
 pandas
 peft
+requests
 sentencepiece
 transformers[torch]
 tqdm
